@@ -1,11 +1,20 @@
 const User = require("../models/User");
 const jwt = require('jsonwebtoken');
 
-
 // handle errors
 const handleErrors = (err) => {
   console.log(err.message, err.code);
   let errors = { email: '', password: '' };
+
+  // incorrect email
+  if (err.message === 'incorrect email') {
+    errors.email = 'That email is not registered';
+  }
+
+  // incorrect password
+  if (err.message === 'incorrect password') {
+    errors.password = 'That password is incorrect';
+  }
 
   // duplicate email error
   if (err.code === 11000) {
@@ -26,12 +35,11 @@ const handleErrors = (err) => {
   return errors;
 }
 
-
 // create json web token
 const maxAge = 3 * 24 * 60 * 60;
 const createToken = (id) => {
-  return jwt.sign({ id }, 'net ninja secret', { //sign method takes the payload (the id), and the secret (it is secret to the application to be used for hashing)
-    expiresIn: maxAge  // the token time is in seconds not in milliseconds like the cookies
+  return jwt.sign({ id }, 'net ninja secret', {
+    expiresIn: maxAge
   });
 };
 
@@ -50,7 +58,7 @@ module.exports.signup_post = async (req, res) => {
   try {
     const user = await User.create({ email, password });
     const token = createToken(user._id);
-    res.cookie('jwt', token, { httpOnly: true, maxAge: maxAge * 1000 });  
+    res.cookie('jwt', token, { httpOnly: true, maxAge: maxAge * 1000 });
     res.status(201).json({ user: user._id });
   }
   catch(err) {
@@ -63,6 +71,15 @@ module.exports.signup_post = async (req, res) => {
 module.exports.login_post = async (req, res) => {
   const { email, password } = req.body;
 
-  console.log(email, password);
-  res.send('user login');
+  try {
+    const user = await User.login(email, password);
+    const token = createToken(user._id);
+    res.cookie('jwt', token, { httpOnly: true, maxAge: maxAge * 1000 });
+    res.status(200).json({ user: user._id });
+  } 
+  catch (err) {
+    const errors = handleErrors(err);
+    res.status(400).json({ errors });
+  }
+
 }
